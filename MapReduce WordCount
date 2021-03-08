@@ -1,0 +1,118 @@
+
+Information generale
+Software
+
+
+VMWare 16.1.0
+Windows 10 (Machine hôte)
+Ubuntu-18.04.5 (Machine virtuelle)
+Hadoop-3.1.0
+Eclipse jee-2020-06
+WinSCP
+
+Utilisateurs/Mot de passe
+dev (Utilisateur principal, sous le nom Ubuntu-18.04.5)/dev
+hadoop (Utilisateur Hadoop)/hadoop
+
+Code Java
+
+++++++++++++++++++++++++++++++++++++
+package wc;
+
+import java.io.IOException;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.util.GenericOptionsParser;
+
+public class WordCount {
+	@SuppressWarnings("deprecation")
+	public static void main(String[] argsx) throws Exception {
+
+		String[] args = new String[2];
+		args[0] = "matrix.txt";
+		args[1] = "output";
+
+		Configuration configuration = new Configuration();
+		String[] files = new GenericOptionsParser(configuration, args).getRemainingArgs();
+		Path input = new Path(files[0]);
+		Path output = new Path(files[1]);
+		Job job = new Job(configuration, "wordcount");
+		job.setJarByClass(WordCount.class);
+		job.setMapperClass(MapForWordCount.class);
+		job.setReducerClass(ReduceForWordCount.class);
+		job.setOutputKeyClass(Text.class);
+		job.setOutputValueClass(IntWritable.class);
+		FileInputFormat.addInputPath(job, input);
+		FileOutputFormat.setOutputPath(job, output);
+		System.exit(job.waitForCompletion(true) ? 0 : 1);
+	}
+
+	public static class MapForWordCount extends Mapper<LongWritable, Text, Text, IntWritable> {
+		public void map(LongWritable key, Text value, Context con) throws IOException, InterruptedException {
+			String line = value.toString();
+			String[] words = line.split(",");
+			for (String word : words) {
+				Text outputKey = new Text(word.toUpperCase().trim());
+				IntWritable outputValue = new IntWritable(1);
+				con.write(outputKey, outputValue);
+			}
+		}
+	}
+
+	public static class ReduceForWordCount extends Reducer<Text, IntWritable, Text, IntWritable> {
+		public void reduce(Text word, Iterable<IntWritable> values, Context con)
+				throws IOException, InterruptedException {
+			int sum = 0;
+			for (IntWritable value : values) {
+				sum += value.get();
+			}
+			con.write(word, new IntWritable(sum));
+		}
+	}
+}
+
+
+++++++++++++++++++++++++++++++++++++
+External Jars :
+Pour ne pas se compliquer la vie, prendre tous les fichiers .JAR du dossier share de hadoop.
+Comme Eclipse est dans la meme machine que Hadoop, les complications de connexion entre machines hote et virtuelle sont evitees.
+Et comme Eclipse et hadoop sont sur la meme machine, il suffira de lance la meme  machine, il est inutile de generer un fichier Jar executable pour executer le code.
+IL suffit d’executer le projet java
+Deux possibilites
+Soit dans le menu project|run as|java project, et indiauer en comme paranetres le fichier d’entree et le dossier de sortie.
+Soit en court-circuitant les parametres d’entree (String[] args)
+La ligne 	
+public static void main(String[] args) throws Exception {
+Modifiee pour devenir
+	public static void main(String[] argsx) throws Exception {
+ET ajout des entrees/sorties « en dur »
+		String[] args = new String[2];
+		args[0] = "matrix.txt";
+		args[1] = "output";
+
+Le fichier d’entree = "matrix.txt" doir etre dans le dossier du projet (Voir l’arborescence du projet)
+
+ 
+
+Le fichier transport
+metro 
+bus
+tram
+voiture
+tram
+bus
+bateau
+avion
+bus
+voiture
+bus
+
+
