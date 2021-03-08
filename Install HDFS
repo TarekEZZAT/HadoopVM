@@ -1,0 +1,233 @@
+Installer Hadoop HDFS sur un cluster à nœud unique
+Dans ce guide, nous verrons comment installer Hadoop HDFS sur un cluster à nœud unique avec Google Cloud Virtual Machine. Suivez le didacticiel vidéo ci-dessous. Pour copier diverses commandes, vous pouvez revenir sur cette page.
+Préparer un nouveau serveur
+Créez une nouvelle VM dans Google Cloud avec Ubuntu comme image de base. Créez une instance avec une RAM et un processeur élevés si possible pour prendre en charge divers processus hadoop java.
+Ouvrez le terminal SSH dans la fenêtre du navigateur. Créez un nouvel utilisateur en tant que «hadoop» et donnez l' accès sudo à ce nouvel utilisateur. Puis connectez-vous en tant que hadoop.
+adduser hadoop
+#Set and confirm the new user’s password at the prompt.
+
+#Add user to sudo group
+usermod -aG sudo hadoop 
+
+#Change current user as hadoop or logout and log back in with hadoop
+sudo su - hadoop
+Une fois connecté en tant que hadoop, mettez à jour les référentiels en utilisant la commande ci-dessous.
+sudo apt-get update
+
+Installer Java 8 sur Ubuntu en utilisant apt-get. 
+
+sudo apt install openjdk-8-jdk
+
+Vérification de l'inatallation de Java en utilisant la commande suivante
+      
+java -version
+
+version java "1.8.0_201
+
+Prenez note de la version java et recherchez le répertoire d'installation de java.
+Pour trouver java répertoire d’installation, l’utilisation « qui » commande et « readlink » commande comme indiqué ci - dessous.
+which java
+Prenez note du chemin java ci-dessus. 
+Ce sera le chemin JAVA_HOME dans les prochaines étapes.
+Téléchargez et copiez le binaire Hadoop
+Accédez au site Hadoop et copiez le dernier lien du fichier Hadoop .tar.gz à partir de n'importe quel site miroir.
+http://hadoop.apache.org/releases.html
+Téléchargez le fichier Hadoop .tar.gz à l'aide de la commande wget dans le répertoire Téléchargements
+mkdir ~/Downloads
+cd ~/Downloads
+wget http://apache.forsale.plus/hadoop/common/hadoop-3.1.4/hadoop-3.1.4.tar.gz
+Extrayez le fichier .tar.gz.
+tar -zxvf hadoop-3.1.4.tar.gz
+Déplacer le répertoire hadoop extrait vers  /usr/loca /hadoop
+sudo mv hadoop-3.1.4 /usr/local/hadoop
+Définir les variables d'environnement
+Modifiez le fichier .bashrc et définissez les variables d'environnement comme indiqué. Ces variables sont importantes.
+vi ~/.bashrc
+Dans le fichier ~ / .bashrc, ajoutez les lignes ci-dessous à la fin du fichier et enregistrez-le.
+export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+export PATH=$PATH:$JAVA_HOME/bin
+export HADOOP_HOME=/usr/local/hadoop
+export PATH=$PATH:$HADOOP_HOME/bin
+export PATH=$PATH:$HADOOP_HOME/sbin
+export HADOOP_CONF_DIR=/usr/local/hadoop/etc/hadoop
+export HADOOP_CLASSPATH=/usr/lib/jvm/java-8-openjdk-amd64/lib/tools.jar
+Prenez note de la variable JAVA HOME, nous avons utilisé le chemin que nous avons trouvé plus tôt en utilisant les commandes «which» et «readlink» . Vous devrez peut-être modifier ce chemin si vous utilisez une version différente de java.
+Recharger les variables d'environnement. Ou déconnectez-vous et reconnectez-vous.
+source ~/.bashrc
+Configurer Hadoop
+Ajouter le chemin d'accès Java dans le fichier hadoop-env.sh
+vi $HADOOP_CONF_DIR/hadoop-env.sh
+Ajoutez la ligne ci-dessous dans ce fichier.
+export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+Modifiez le fichier xml du site principal hadoop.
+vi $HADOOP_CONF_DIR/core-site.xml
+Ajoutez les lignes ci-dessous dans core-site.xml. Assurez-vous que l'adresse IP est reflétée pour NameNode. Utilisez ici l'adresse IP interne ou le nom d'hôte interne de la VM google cloud. 
+N'utilisez pas localhost ici car vous devrez accéder à la page Web à partir d'une adresse IP externe plus tard. 
+Pour connaitre l’adresse IP interne de la machine virtuelle Ubuntu :
+ifconfig -a
+L’entrée ens33 : indique cette adresse.
+Dans ce guide elle est :
+192.168.87.135
+Ou vous pouvez utiliser 0.0.0.0 pour lier le service à toutes les adresses IP disponibles. 
+Le port  HDFS.est 54310
+<property>
+<name>fs.defaultFS</name>
+<value>hdfs://0.0.0.0:54310</value>
+</property>
+Modifiez les paramètres du site yarn
+vi $HADOOP_CONF_DIR/yarn-site.xml
+Ajoutez / mettez à jour les lignes ci-dessous dans yarn-site.xml . Modifiez l'ip 10.128.0.8 selon l'IP interne ou le nom d'hôte de votre VM. Prenez note du port 5349 qui est défini pour accéder à la page Web du gestionnaire de ressources.
+<property>
+<name>yarn.nodemanager.aux-services</name>
+<value>mapreduce_shuffle</value>
+</property>
+<property>
+<name>yarn.nodemanager.aux-services.mapreduce.shuffle.class</name>
+<value>org.apache.hadoop.mapred.ShuffleHandler</value>
+</property>
+<property>
+<name>yarn.resourcemanager.hostname</name>
+<value>10.128.0.8</value>
+</property>
+<property>
+<name>yarn.resourcemanager.webapp.address</name>
+<value>${yarn.nodemanager.hostname}:5349</value>
+</property>
+<property>
+<name>yarn.nodemanager.webapp.address</name>
+<value>${yarn.nodemanager.hostname}:5249</value>
+</property>
+Modifiez le fichier mapred-site.xml
+vi $HADOOP_CONF_DIR/mapred-site.xml
+Ajouter / mettre à jour la configuration ci-dessous dans mapred-site.xml.
+<property>
+<name>mapreduce.jobtracker.address</name>
+<value>0.0.0.0:54311</value>
+</property>
+<property>
+<name>mapreduce.framework.name</name>
+<value>yarn</value>
+</property>
+Modifier les paramètres du site hdfs 
+Il faut ajouter des répertoires de facteur de réplication, de nœud de nom et de nœud de données
+vi $HADOOP_CONF_DIR/hdfs-site.xml
+Add/update below configuration in hdfs-site.xml.
+<property>
+<name>dfs.replication</name>
+<value>3</value>
+</property>
+<property>
+<name>dfs.namenode.name.dir</name>
+<value>file:///usr/local/hadoop/hadoop_data/hdfs/namenode </value>
+</property>
+<property>
+<name>dfs.datanode.data.dir</name>
+<value>file:///usr/local/hadoop/hadoop_data/hdfs/datanode</value>
+</property>
+<property>
+<name>dfs.webhdfs.enabled</name>
+<value>true</value>
+</property>
+Creation des data directories
+mkdir -p $HADOOP_HOME/hadoop_data/hdfs/namenode
+mkdir -p $HADOOP_HOME/hadoop_data/hdfs/datanode
+
+Creation des addresses masters et slaves
+vi $HADOOP_CONF_DIR/masters
+Ajouter l’adresse interne de la machine virtuelle (ici )
+192.168.87.135
+
+vi $HADOOP_CONF_DIR/slaves
+Ajouter l’adresse interne de la machine virtuelle (ici )
+192.168.87.135
+Formater namenode
+hdfs namenode -format
+Mettre en place les autorisations d’accès
+Creation de clefs SSH pour l’utilisateur courant (hadoop) pour avoir un accès a localhost sans mot de passe
+Générer la clefs SSH key et la copier dans le fichier des clefs autorisées
+ssh-keygen
+cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+Essayer SSH
+Il devra être possible de se connecter sans mot de passe
+ssh localhost
+ssh 192.168.87.135
+ssh 0.0.0.0
+Editer les fichiers hosts
+sudo vi /etc/hosts
+Ajouter la ligne 
+192.168.87.135localhost
+
+Ceci devrait permettre de se connecter a la machine virtuelle Ubuntu depuis la machine hote
+Démarrer les services Hadoop
+$HADOOP_HOME/sbin/start-dfs.sh
+$HADOOP_HOME/sbin/start-yarn.sh
+$HADOOP_HOME/sbin/mr-jobhistory-daemon.sh start historyserver
+Verifier le status des services 
+jps
+
+Output:
+4000 JobHistoryServer
+3650 ResourceManager
+3010 NameNode
+4243 Jps
+3403 SecondaryNameNode
+3789 NodeManager
+3150 DataNode
+Autre commande:
+hdfs dfsadmin -report
+
+Output...
+Live datanodes (1):
+
+Name: 127.0.0.1:9866 (ip6-loopback)
+Hostname: ip6-loopback
+Decommission Status : Normal
+Configured Capacity: 51848519680 (48.29 GB)
+DFS Used: 41852928 (39.91 MB)
+Non DFS Used: 4550049792 (4.24 GB)
+DFS Remaining: 47239839744 (44.00 GB)
+DFS Used%: 0.08%
+DFS Remaining%: 91.11%
+Configured Cache Capacity: 0 (0 B)
+Cache Used: 0 (0 B)
+Cache Remaining: 0 (0 B)
+Cache Used%: 100.00%
+Cache Remaining%: 0.00%
+Xceivers: 1
+Last contact: Sat Oct 10 04:16:53 UTC 2020
+Last Block Report: Sat Oct 10 04:12:45 UTC 2020
+Num of Blocks: 13
+Lister le dossier racine de hadoop
+hadoop fs -ls /
+Créer et vérifier un nouveau dossier hadoop
+hadoop fs -mkdir /test01
+#Check if test01 exist
+hadoop fs -ls /
+Créer un fichier de test et le télécharger dans hadoop,
+vi test.txt
+# ajouter un texte quelconque dans le fichier
+hadoop fs -put test.txt /
+#Lister le contenu du dossier pour vérifier que test.txt existe
+hadoop fs -ls /
+#Afficher test.txt dans haddop hdfs
+hadoop fs -cat /test.txt
+Accès Web Hadoop
+L’installation est terminée
+Vous pouvez accéder :
+
+Page web de yarn
+http:// ubuntu:5349
+
+Page web du node manager
+http:// ubuntu: 5249
+
+Page web namenode information
+http://ubuntu:9870/dfshealth.html#tab-overview
+
+Page Web datanode information
+http://ubuntu:9864/datanode.html
+
+Browsing hdfs
+http://localhost:9870/explorer.html#/user/hadoop/logs/
+
+
